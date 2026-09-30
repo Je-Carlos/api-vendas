@@ -61,6 +61,13 @@ class FornecedorIntegrationTest {
     }
 
     @Test
+    void rejeitaNomeMaiorQueColuna() throws Exception {
+        mvc.perform(post("/fornecedores").contentType("application/json")
+                .content("{\"nome\":\"" + "a".repeat(256) + "\",\"cnpj\":\"12345678000199\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void rejeitaCnpjDuplicado() throws Exception {
         mvc.perform(post("/fornecedores").contentType("application/json")
                 .content("{\"nome\":\"Duplicado\",\"cnpj\":\"10000000000001\"}"))
