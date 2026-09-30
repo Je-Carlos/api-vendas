@@ -1,0 +1,140 @@
+services:
+  auth-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: authdb
+      POSTGRES_USER: auth
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:?Defina AUTH_DB_PASSWORD no .env}
+    volumes: [auth-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth -d authdb"]
+      interval: 10s
+      retries: 10
+    networks: [microservicos-net]
+
+  vendas-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: vendasdb
+      POSTGRES_USER: vendas
+      POSTGRES_PASSWORD: ${VENDAS_DB_PASSWORD:?Defina VENDAS_DB_PASSWORD no .env}
+    volumes: [vendas-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vendas -d vendasdb"]
+      interval: 10s
+      retries: 10
+    networks: [microservicos-net]
+
+  eureka-server:
+    build: ./eureka-server
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8761/"]
+      interval: 10s
+      start_period: 30s
+      retries: 12
+    networks: [microservicos-net]
+
+  config-server:
+    build: ./config-server
+    volumes: [./config-repo:/config-repo:ro]
+    environment:
+      SPRING_PROFILES_ACTIVE: native
+      SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS: file:///config-repo
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8888/produtos-service/docker"]
+      interval: 10s
+      start_period: 30s
+      retries: 12
+    networks: [microservicos-net]
+
+  produtos-service:
+    build: ./produtos-service
+    depends_on:
+      eureka-server: {condition: service_healthy}
+      config-server: {condition: service_healthy}
+    environment:
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+    networks: [microservicos-net]
+
+  clientes-service:
+    build: ./clientes-service
+    depends_on:
+      eureka-server: {condition: service_healthy}
+      config-server: {condition: service_healthy}
+    environment:
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+    networks: [microservicos-net]
+
+  auth-service:
+    build: ./auth-service
+    depends_on:
+      auth-db: {condition: service_healthy}
+      eureka-server: {condition: service_healthy}
+      config-server: {condition: service_healthy}
+    environment:
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      AUTH_DB_HOST: auth-db
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:?Defina AUTH_DB_PASSWORD no .env}
+      JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET no .env}
+      ACCESS_TOKEN_TTL_SECONDS: ${ACCESS_TOKEN_TTL_SECONDS:-900}
+      REFRESH_TOKEN_TTL_SECONDS: ${REFRESH_TOKEN_TTL_SECONDS:-604800}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8084/actuator/health"]
+      interval: 10s
+      start_period: 40s
+      retries: 12
+    networks: [microservicos-net]
+
+  vendas-service:
+    build: ./vendas-service
+    depends_on:
+      vendas-db: {condition: service_healthy}
+      eureka-server: {condition: service_healthy}
+      config-server: {condition: service_healthy}
+    environment:
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      VENDAS_DB_HOST: vendas-db
+      VENDAS_DB_PASSWORD: ${VENDAS_DB_PASSWORD:?Defina VENDAS_DB_PASSWORD no .env}
+      PRODUTOS_BASE_URL: http://produtos-service:8081
+      JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET no .env}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8082/actuator/health"]
+      interval: 10s
+      start_period: 40s
+      retries: 12
+    networks: [microservicos-net]
+
+  gateway:
+    build: ./gateway
+    depends_on:
+      auth-service: {condition: service_healthy}
+      vendas-service: {condition: service_healthy}
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET no .env}
+    ports: ["8085:8085"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8085/actuator/health"]
+      interval: 10s
+      start_period: 40s
+      retries: 12
+    networks: [microservicos-net]
+
+volumes:
+  auth-data:
+  vendas-data:
+
+networks:
+  microservicos-net:
