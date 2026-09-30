@@ -15,13 +15,15 @@ import lombok.Setter;
 public class UsuarioRequest {
 
     @NotBlank(message = "nome e obrigatorio")
+    @Size(max = 255)
     private String nome;
 
     @NotBlank(message = "email e obrigatorio")
     @Email(message = "email invalido")
+    @Size(max = 255)
     private String email;
 
     @NotBlank(message = "senha e obrigatoria")
-    @Size(min = 6, message = "senha deve ter no minimo 6 caracteres")
+    @Size(min = 6, max = 72, message = "senha deve ter entre 6 e 72 caracteres")
     private String senha;
 }

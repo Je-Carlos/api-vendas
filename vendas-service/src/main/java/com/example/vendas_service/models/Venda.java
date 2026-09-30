@@ -1,32 +1,26 @@
 package com.example.vendas_service.models;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Entity
-@Table(name = "vendas")
+@Table("vendas")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class Venda {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column( nullable = false)
+    @Column("id_produto")
     private Long idProduto;
 
-    @Column(nullable = false)
     private Integer quantidade;
 
-    @Column(nullable = false)
+    @Column("valor_produto")
     private Double valorProduto;
 }
