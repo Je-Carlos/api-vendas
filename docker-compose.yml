@@ -71,6 +71,19 @@ services:
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
     networks: [microservicos-net]
 
+  fornecedores-service:
+    build: ./fornecedores-service
+    depends_on:
+      eureka-server: {condition: service_healthy}
+      config-server: {condition: service_healthy}
+      produtos-service: {condition: service_started}
+    environment:
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+    networks: [microservicos-net]
+
   auth-service:
     build: ./auth-service
     depends_on:
